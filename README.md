@@ -2,7 +2,7 @@
 This is a example project for nRF52 OTA.
 
 # Qiita
-このリポジトリは、nRF52でBLEデバイスを開発する（２）OTAアップデート Buttonless DFUとSecure DFU()のためのサンプルリポジトリです。
+このリポジトリは、Qiitaの記事「nRF52でBLEデバイスを開発する（２）OTAアップデート Buttonless DFUとSecure DFU」(https://qiita.com/jiro-aqua/items/97c8ec6910d584281b7a)のためのサンプルリポジトリです。
 
 # to use this example
 
@@ -11,7 +11,7 @@ This is a example project for nRF52 OTA.
 - open application's emProject file by Segger Embedded Studio and build it.
 - open bootloader's emProject file by Segger Embedded Studio and build it.
 - open command prompt at ./package/
-- execute package.bat to build ROM imag and OTA image.
+- execute package.bat to build ROM image and OTA image.
 
 # ROM flashing
 
