@@ -138,10 +138,10 @@ int main(void)
     NRF_LOG_DEFAULT_BACKENDS_INIT();
 
     NRF_LOG_INFO("Inside main");
-
+#if ( DEBUG_BOOTLOADER == 0 )
     ret_val = nrf_bootloader_init(dfu_observer);
     APP_ERROR_CHECK(ret_val);
-
+#endif
     // Either there was no DFU functionality enabled in this project or the DFU module detected
     // no ongoing DFU operation and found a valid main application.
     // Boot the main application.
