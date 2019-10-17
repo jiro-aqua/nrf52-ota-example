@@ -2,7 +2,7 @@
 This is a example project for nRF52 OTA.
 
 # Qiita
-このリポジトリは、Qiitaの記事「nRF52でBLEデバイスを開発する（２）OTAアップデート Buttonless DFUとSecure DFU」(https://qiita.com/jiro-aqua/items/97c8ec6910d584281b7a)のためのサンプルリポジトリです。
+このリポジトリは、Qiitaの記事「nRF52でBLEデバイスを開発する（２）OTAアップデート Buttonless DFUとSecure DFU」( https://qiita.com/jiro-aqua/items/97c8ec6910d584281b7a )のためのリポジトリです。
 
 # to use this example
 
