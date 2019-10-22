@@ -123,6 +123,32 @@ BLE_ADVERTISING_DEF(m_advertising);                                             
 static uint16_t m_conn_handle = BLE_CONN_HANDLE_INVALID;                            /**< Handle of the current connection. */
 static void advertising_start(bool erase_bonds);                                    /**< Forward declaration of advertising start function */
 
+#define AB_BLE_OBSERVER_PRIO 2
+
+#define AB_BLE_SERVICE_DEF(_name)                                                                 \
+static ab_ble_t _name;                                                                            \
+NRF_SDH_BLE_OBSERVER(_name ## _obs,                                                               \
+                     AB_BLE_OBSERVER_PRIO,                                                    \
+                     ab_ble_on_ble_evt, &_name)
+
+typedef void (*ab_ble_command_write_handler_t) (const uint8_t *commands, uint8_t length);
+typedef void (*ab_ble_tx_complete_handler_t)(void);
+
+typedef struct ab_ble_s
+{
+    uint16_t                    service_handle;
+    ble_gatts_char_handles_t    command_char_handles;
+    ble_gatts_char_handles_t    response_char_handles;
+    ble_gatts_char_handles_t    data_char_handles;
+    uint8_t                     uuid_type;
+    ab_ble_command_write_handler_t command_write_handler;
+    ab_ble_tx_complete_handler_t tx_complete_handler;
+} ab_ble_t; 
+
+void ab_ble_on_ble_evt(ble_evt_t const * p_ble_evt, void * p_context);
+
+AB_BLE_SERVICE_DEF(m_abs);
+
 // UUID for AquaBlue Service
 // 8154ef7d-469b-471e-b071-2cfe62d43f3a
 
@@ -134,15 +160,47 @@ static void advertising_start(bool erase_bonds);                                
 #define AB_BLE_UUID_DATA_CHAR   0xef72
 #define AB_BLE_MAX_DATA_LEN    (NRF_SDH_BLE_GATT_MAX_MTU_SIZE - 1 - 2)
 
-static uint8_t uuid_type;
-static uint16_t service_handle;
-static ble_gatts_char_handles_t    command_char_handles;
-static ble_gatts_char_handles_t    response_char_handles;
-static ble_gatts_char_handles_t    data_char_handles;
+//static uint8_t uuid_type;
+//static uint16_t service_handle;
+//static ble_gatts_char_handles_t    command_char_handles;
+//static ble_gatts_char_handles_t    response_char_handles;
+//static ble_gatts_char_handles_t    data_char_handles;
 
 // YOUR_JOB: Use UUIDs for service(s) used in your application.
 static ble_uuid_t m_adv_uuids[] = {{AB_BLE_UUID_SERVICE, 0}};
 
+
+static void on_write(ab_ble_t * p_abs, ble_evt_t const * p_ble_evt)
+{
+    ble_gatts_evt_write_t const * p_evt_write = &p_ble_evt->evt.gatts_evt.params.write;
+
+    if (p_evt_write->handle == p_abs->command_char_handles.value_handle)
+    {
+        p_abs->command_write_handler(p_evt_write->data , p_evt_write->len );
+    }
+}
+
+
+void ab_ble_on_ble_evt(ble_evt_t const * p_ble_evt, void * p_context)
+{
+    ab_ble_t * p_abs = (ab_ble_t *)p_context;
+
+    switch (p_ble_evt->header.evt_id)
+    {
+        case BLE_GATTS_EVT_WRITE:
+            on_write(p_abs, p_ble_evt);
+            break;
+
+        case BLE_GATTS_EVT_HVN_TX_COMPLETE:
+//            NRF_LOG_INFO("send completed.");
+            p_abs->tx_complete_handler();
+            break;
+
+       default:
+            // No implementation needed.
+            break;
+    }
+}
 
 
 /**@brief Handler for shutdown preparation.
@@ -446,70 +504,70 @@ static void services_init(void)
 
     // Add service.
     ble_uuid128_t base_uuid = {AB_BLE_UUID_BASE};
-    err_code = sd_ble_uuid_vs_add(&base_uuid, &uuid_type);
+    err_code = sd_ble_uuid_vs_add(&base_uuid, &m_abs.uuid_type);
     APP_ERROR_CHECK(err_code);
 
-//    ble_uuid_t            ble_uuid;
-//    ble_add_char_params_t add_char_params;
-//
-//    ble_uuid.type = uuid_type;
-//    ble_uuid.uuid = AB_BLE_UUID_SERVICE;
-//
-//    err_code = sd_ble_gatts_service_add(BLE_GATTS_SRVC_TYPE_PRIMARY, &ble_uuid, &service_handle);
-//    APP_ERROR_CHECK(err_code);
-//
-//    // Add Command characteristic.
-//    memset(&add_char_params, 0, sizeof(add_char_params));
-//    add_char_params.uuid              = AB_BLE_UUID_COMMAND_CHAR;
-//    add_char_params.uuid_type         = uuid_type;
-//    add_char_params.init_len          = sizeof(uint8_t);
-//    add_char_params.max_len           = AB_BLE_MAX_DATA_LEN;
-//    add_char_params.is_var_len        = true;
-//    add_char_params.char_props.write_wo_resp  = 1;
-//
-//    add_char_params.write_access      = SEC_OPEN;
-//
-//    err_code = characteristic_add(service_handle,
-//                                  &add_char_params,
-//                                  &command_char_handles);
-//    APP_ERROR_CHECK(err_code);
-//
-//    // Add Response characteristic.
-//    memset(&add_char_params, 0, sizeof(add_char_params));
-//    add_char_params.uuid              = AB_BLE_UUID_RESPONSE_CHAR;
-//    add_char_params.uuid_type         = uuid_type;
-//    add_char_params.init_len          = sizeof(uint8_t);
-//    add_char_params.max_len           = AB_BLE_MAX_DATA_LEN;
-//    add_char_params.is_var_len        = true;
-//    add_char_params.char_props.read   = 1;
-//    add_char_params.char_props.notify = 1;
-//
-//    add_char_params.read_access       = SEC_OPEN;
-//    add_char_params.cccd_write_access = SEC_OPEN;
-//
-//    err_code = characteristic_add(service_handle,
-//                                  &add_char_params,
-//                                  &response_char_handles);
-//    APP_ERROR_CHECK(err_code);
-//
-//    // Add Data characteristic.
-//    memset(&add_char_params, 0, sizeof(add_char_params));
-//    add_char_params.uuid              = AB_BLE_UUID_DATA_CHAR;
-//    add_char_params.uuid_type         = uuid_type;
-//    add_char_params.init_len          = sizeof(uint8_t);
-//    add_char_params.max_len           = AB_BLE_MAX_DATA_LEN;
-//    add_char_params.is_var_len        = true;
-//    add_char_params.char_props.read   = 1;
-//    add_char_params.char_props.notify = 1;
-//
-//    add_char_params.read_access       = SEC_OPEN;
-//    add_char_params.cccd_write_access = SEC_OPEN;
-//
-//    err_code = characteristic_add(service_handle,
-//                                  &add_char_params,
-//                                  &data_char_handles);
-//
-//    APP_ERROR_CHECK(err_code);
+    ble_uuid_t            ble_uuid;
+    ble_add_char_params_t add_char_params;
+
+    ble_uuid.type = m_abs.uuid_type;
+    ble_uuid.uuid = AB_BLE_UUID_SERVICE;
+
+    err_code = sd_ble_gatts_service_add(BLE_GATTS_SRVC_TYPE_PRIMARY, &ble_uuid, &m_abs.service_handle);
+    APP_ERROR_CHECK(err_code);
+
+    // Add Command characteristic.
+    memset(&add_char_params, 0, sizeof(add_char_params));
+    add_char_params.uuid              = AB_BLE_UUID_COMMAND_CHAR;
+    add_char_params.uuid_type         = m_abs.uuid_type;
+    add_char_params.init_len          = sizeof(uint8_t);
+    add_char_params.max_len           = AB_BLE_MAX_DATA_LEN;
+    add_char_params.is_var_len        = true;
+    add_char_params.char_props.write_wo_resp  = 1;
+
+    add_char_params.write_access      = SEC_OPEN;
+
+    err_code = characteristic_add(m_abs.service_handle,
+                                  &add_char_params,
+                                  &m_abs.command_char_handles);
+    APP_ERROR_CHECK(err_code);
+
+    // Add Response characteristic.
+    memset(&add_char_params, 0, sizeof(add_char_params));
+    add_char_params.uuid              = AB_BLE_UUID_RESPONSE_CHAR;
+    add_char_params.uuid_type         = m_abs.uuid_type;
+    add_char_params.init_len          = sizeof(uint8_t);
+    add_char_params.max_len           = AB_BLE_MAX_DATA_LEN;
+    add_char_params.is_var_len        = true;
+    add_char_params.char_props.read   = 1;
+    add_char_params.char_props.notify = 1;
+
+    add_char_params.read_access       = SEC_OPEN;
+    add_char_params.cccd_write_access = SEC_OPEN;
+
+    err_code = characteristic_add(m_abs.service_handle,
+                                  &add_char_params,
+                                  &m_abs.response_char_handles);
+    APP_ERROR_CHECK(err_code);
+
+    // Add Data characteristic.
+    memset(&add_char_params, 0, sizeof(add_char_params));
+    add_char_params.uuid              = AB_BLE_UUID_DATA_CHAR;
+    add_char_params.uuid_type         = m_abs.uuid_type;
+    add_char_params.init_len          = sizeof(uint8_t);
+    add_char_params.max_len           = AB_BLE_MAX_DATA_LEN;
+    add_char_params.is_var_len        = true;
+    add_char_params.char_props.read   = 1;
+    add_char_params.char_props.notify = 1;
+
+    add_char_params.read_access       = SEC_OPEN;
+    add_char_params.cccd_write_access = SEC_OPEN;
+
+    err_code = characteristic_add(m_abs.service_handle,
+                                  &add_char_params,
+                                  &m_abs.data_char_handles);
+
+    APP_ERROR_CHECK(err_code);
 
 }
 
@@ -806,7 +864,7 @@ static void advertising_init(void)
     uint32_t               err_code;
     ble_advertising_init_t init;
 
-    m_adv_uuids[0].type = uuid_type;
+    m_adv_uuids[0].type = m_abs.uuid_type;
 
     memset(&init, 0, sizeof(init));
 
@@ -906,6 +964,33 @@ static void idle_state_handle(void)
     }
 }
 
+uint32_t ble_service_send_response(uint16_t conn_handle, ab_ble_t * p_abs, const uint8_t* data , uint16_t len )
+{
+    ble_gatts_hvx_params_t params;
+
+    memset(&params, 0, sizeof(params));
+    params.type   = BLE_GATT_HVX_NOTIFICATION;
+    params.handle = p_abs->response_char_handles.value_handle;
+    params.p_data = data;
+    params.p_len  = &len;
+
+    return sd_ble_gatts_hvx(conn_handle, &params);
+}
+
+
+void ble_command_write_handler(const uint8_t *commands, uint8_t length)
+{
+  NRF_LOG_HEXDUMP_INFO(commands, length);
+
+  ble_service_send_response(m_conn_handle, &m_abs , commands, length );
+}
+
+
+void ble_tx_complete_handler(void)
+{
+  NRF_LOG_INFO("TX COMPLETED.");
+}
+
 
 /**@brief Function for application main entry.
  */
@@ -921,6 +1006,9 @@ int main(void)
     err_code = ble_dfu_buttonless_async_svci_init();
     APP_ERROR_CHECK(err_code);
 
+    m_abs.command_write_handler = ble_command_write_handler;
+    m_abs.tx_complete_handler = ble_tx_complete_handler;
+
     timers_init();
     power_management_init();
 //    buttons_leds_init(&erase_bonds);
@@ -931,6 +1019,7 @@ int main(void)
     services_init();
     advertising_init();
     conn_params_init();
+
 
     NRF_LOG_INFO("Buttonless DFU Application started.");
 
