@@ -97,6 +97,7 @@
     <folder Name="Application">
       <file file_name="../../../main.c" />
       <file file_name="../config/sdk_config.h" />
+      <file file_name="../../../ab_ble.c" />
     </folder>
     <folder Name="nRF_SVC">
       <file file_name="$(SDK)/components/libraries/bootloader/dfu/nrf_dfu_svci.c" />
